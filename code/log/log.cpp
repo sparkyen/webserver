@@ -41,8 +41,7 @@ void Log::SetLevel(int level) {
     level_ = level;
 }
 
-void Log::init(int level = 1, const char* path, const char* suffix,
-    int maxQueueSize) {
+void Log::init(int level = 1, const char* path, const char* suffix, int maxQueueSize) {
     isOpen_ = true;
     level_ = level;
     if(maxQueueSize > 0) {
@@ -66,8 +65,8 @@ void Log::init(int level = 1, const char* path, const char* suffix,
     path_ = path;
     suffix_ = suffix;
     char fileName[LOG_NAME_LEN] = {0};
-    snprintf(fileName, LOG_NAME_LEN - 1, "%s/%04d_%02d_%02d%s", 
-            path_, t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, suffix_);
+    snprintf(fileName, LOG_NAME_LEN - 1, "%s/%04d%02d%02d%02d%02d%02d%s", 
+            path_, t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec,suffix_);
     toDay_ = t.tm_mday;
 
     {
@@ -96,8 +95,7 @@ void Log::write(int level, const char *format, ...) {
     va_list vaList;
 
     /* 日志日期 日志行数 */
-    if (toDay_ != t.tm_mday || (lineCount_ && (lineCount_  %  MAX_LINES == 0)))
-    {
+    if (toDay_ != t.tm_mday || (lineCount_ && (lineCount_  %  MAX_LINES == 0))) {
         unique_lock<mutex> locker(mtx_);
         locker.unlock();
         
@@ -105,8 +103,7 @@ void Log::write(int level, const char *format, ...) {
         char tail[36] = {0};
         snprintf(tail, 36, "%04d_%02d_%02d", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
 
-        if (toDay_ != t.tm_mday)
-        {
+        if (toDay_ != t.tm_mday){
             snprintf(newFile, LOG_NAME_LEN - 72, "%s/%s%s", path_, tail, suffix_);
             toDay_ = t.tm_mday;
             lineCount_ = 0;

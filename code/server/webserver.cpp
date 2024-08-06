@@ -14,8 +14,11 @@ WebServer::WebServer(
             const char* dbName, int connPoolNum, int threadNum,
             bool openLog, int logLevel, int logQueSize):
             port_(port), openLinger_(OptLinger), timeoutMS_(timeoutMS), isClose_(false),
-            timer_(new HeapTimer()), threadpool_(new ThreadPool(threadNum)), epoller_(new Epoller())
-    {
+            timer_(new HeapTimer()), threadpool_(new ThreadPool(threadNum)), epoller_(new Epoller()){
+    
+    if(openLog) {
+        Log::Instance()->init(logLevel, "./log", ".log", logQueSize);
+    }
     srcDir_ = getcwd(nullptr, 256);
     assert(srcDir_);
     strncat(srcDir_, "/resources/", 16);
@@ -26,19 +29,16 @@ WebServer::WebServer(
     InitEventMode_(trigMode);
     if(!InitSocket_()) { isClose_ = true;}
 
-    if(openLog) {
-        Log::Instance()->init(logLevel, "./log", ".log", logQueSize);
-        if(isClose_) { LOG_ERROR("========== Server init error!=========="); }
-        else {
-            LOG_INFO("========== Server init ==========");
-            LOG_INFO("Port:%d, OpenLinger: %s", port_, OptLinger? "true":"false");
-            LOG_INFO("Listen Mode: %s, OpenConn Mode: %s",
-                            (listenEvent_ & EPOLLET ? "ET": "LT"),
-                            (connEvent_ & EPOLLET ? "ET": "LT"));
-            LOG_INFO("LogSys level: %d", logLevel);
-            LOG_INFO("srcDir: %s", HttpConn::srcDir);
-            LOG_INFO("SqlConnPool num: %d, ThreadPool num: %d", connPoolNum, threadNum);
-        }
+    if(isClose_) { LOG_ERROR("========== Server init error!=========="); }
+    else {
+        LOG_INFO("========== Server init ==========");
+        LOG_INFO("Port:%d, OpenLinger: %s", port_, OptLinger? "true":"false");
+        LOG_INFO("Listen Mode: %s, OpenConn Mode: %s",
+                        (listenEvent_ & EPOLLET ? "ET": "LT"),
+                        (connEvent_ & EPOLLET ? "ET": "LT"));
+        LOG_INFO("LogSys level: %d", logLevel);
+        LOG_INFO("srcDir: %s", HttpConn::srcDir);
+        LOG_INFO("SqlConnPool num: %d, ThreadPool num: %d", connPoolNum, threadNum);
     }
 }
 
@@ -50,27 +50,8 @@ WebServer::~WebServer() {
 }
 
 void WebServer::InitEventMode_(int trigMode) {
-    listenEvent_ = EPOLLRDHUP;
-    connEvent_ = EPOLLONESHOT | EPOLLRDHUP;
-    switch (trigMode)
-    {
-    case 0:
-        break;
-    case 1:
-        connEvent_ |= EPOLLET;
-        break;
-    case 2:
-        listenEvent_ |= EPOLLET;
-        break;
-    case 3:
-        listenEvent_ |= EPOLLET;
-        connEvent_ |= EPOLLET;
-        break;
-    default:
-        listenEvent_ |= EPOLLET;
-        connEvent_ |= EPOLLET;
-        break;
-    }
+    listenEvent_ = EPOLLRDHUP | EPOLLET;
+    connEvent_ = EPOLLONESHOT | EPOLLRDHUP | EPOLLET;
     HttpConn::isET = (connEvent_ & EPOLLET);
 }
 
@@ -79,6 +60,7 @@ void WebServer::Start() {
     if(!isClose_) { LOG_INFO("========== Server start =========="); }
     while(!isClose_) {
         if(timeoutMS_ > 0) {
+            // 这个tick一直在走
             timeMS = timer_->GetNextTick();
         }
         int eventCnt = epoller_->Wait(timeMS);
@@ -139,7 +121,9 @@ void WebServer::DealListen_() {
     socklen_t len = sizeof(addr);
     do {
         int fd = accept(listenFd_, (struct sockaddr *)&addr, &len);
-        if(fd <= 0) { return;}
+        if(fd <= 0) { 
+            return;
+        }
         else if(HttpConn::userCount >= MAX_FD) {
             SendError_(fd, "Server busy!");
             LOG_WARN("Clients is full!");

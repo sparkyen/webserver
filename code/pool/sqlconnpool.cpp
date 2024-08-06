@@ -20,6 +20,8 @@ SqlConnPool* SqlConnPool::Instance() {
 void SqlConnPool::Init(const char* host, int port,
             const char* user,const char* pwd, const char* dbName,
             int connSize = 10) {
+    LOG_INFO("========== SqlConnPool Init ==========");
+    LOG_INFO("host: %s, user: %s, passwd: %s, db_name: %s, port: %d", host, user, pwd, dbName, port);
     assert(connSize > 0);
     for (int i = 0; i < connSize; i++) {
         MYSQL *sql = nullptr;
@@ -33,6 +35,8 @@ void SqlConnPool::Init(const char* host, int port,
                                  dbName, port, nullptr, 0);
         if (!sql) {
             LOG_ERROR("MySql Connect error!");
+        } else {
+            LOG_INFO("Mysql Connect Init %d", i+1);
         }
         connQue_.push(sql);
     }

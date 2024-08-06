@@ -35,27 +35,28 @@ bool HttpRequest::parse(Buffer& buff) {
     while(buff.ReadableBytes() && state_ != FINISH) {
         const char* lineEnd = search(buff.Peek(), buff.BeginWriteConst(), CRLF, CRLF + 2);
         std::string line(buff.Peek(), lineEnd);
-        switch(state_)
-        {
-        case REQUEST_LINE:
-            if(!ParseRequestLine_(line)) {
-                return false;
-            }
-            ParsePath_();
-            break;    
-        case HEADERS:
-            ParseHeader_(line);
-            if(buff.ReadableBytes() <= 2) {
-                state_ = FINISH;
-            }
-            break;
-        case BODY:
-            ParseBody_(line);
-            break;
-        default:
-            break;
+        switch(state_){
+            case REQUEST_LINE:
+                if(!ParseRequestLine_(line)) {
+                    return false;
+                }
+                ParsePath_();
+                break;    
+            case HEADERS:
+                ParseHeader_(line);
+                if(buff.ReadableBytes() <= 2) {
+                    state_ = FINISH;
+                }
+                break;
+            case BODY:
+                ParseBody_(line);
+                break;
+            default:
+                break;
         }
-        if(lineEnd == buff.BeginWrite()) { break; }
+        if(lineEnd == buff.BeginWrite()) { 
+            break; 
+        }
         buff.RetrieveUntil(lineEnd + 2);
     }
     LOG_DEBUG("[%s], [%s], [%s]", method_.c_str(), path_.c_str(), version_.c_str());
